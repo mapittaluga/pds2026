@@ -63,7 +63,7 @@ fo =  np.pi/2
 fr = np.random.uniform(-2,2,200)
 ff = fo + fr * deltaf
 ff = ff.reshape((M, 1))
-SNR = 40
+SNR = 10
 
 _, x = signal_n(wave='sine', vmax=vmax, dc=0, ff=ff, ph=0, nn=N, fs=fs, snr=SNR)
 #%% Ventaneo
@@ -85,10 +85,15 @@ f  = np.arange(start = 0, stop = fs, step = deltaf)
 #%% Estimador de Amplitud
 a0 = vmax
 
-a_rt = 2 * np.abs(X_rt[:, N//4])
-a_ft = 2 * np.abs(X_ft[:, N//4])
-a_bm = 2 * np.abs(X_bm[:, N//4])
-a_hm = 2 * np.abs(X_hm[:, N//4])
+# a_rt = 2 * np.abs(X_rt[:, N//4])
+# a_ft = 2 * np.abs(X_ft[:, N//4])
+# a_bm = 2 * np.abs(X_bm[:, N//4])
+# a_hm = 2 * np.abs(X_hm[:, N//4])
+
+a_rt = 2 * np.sqrt(np.sum(np.abs(X_rt[:, N//4 - 2 : N//4 + 2 + 1])**2, axis=1))
+a_ft = 2 * np.sqrt(np.sum(np.abs(X_ft[:, N//4 - 2 : N//4 + 2 + 1])**2, axis=1))
+a_bm = 2 * np.sqrt(np.sum(np.abs(X_bm[:, N//4 - 2 : N//4 + 2 + 1])**2, axis=1))
+a_hm = 2 * np.sqrt(np.sum(np.abs(X_hm[:, N//4 - 2 : N//4 + 2 + 1])**2, axis=1))
 
 # Sesgos
 Sa_rt = np.mean(a_rt) - a0
