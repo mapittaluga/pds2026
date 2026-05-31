@@ -146,7 +146,7 @@ plt.show()
 #%% Calculo de ancho de Banda ECG con Blackman-Tuckey
 Pecg_bt = Pecg_btM2
 fecg_bt = fecg_M2
-m = M[1 ]
+m = M[1]
 deltaf_ecg_bt = fecg_bt[1] - fecg_bt[0] 
 
 
@@ -412,4 +412,74 @@ plt.legend()
 plt.show() 
 
 
-#%%
+#%% Nota LA Guitarra
+fs_la, la = sio.wavfile.read('NotaLaGuitarra.wav')
+la = la - np.mean(la) # Elimino la potencia de continua.
+Nla = len(la)
+deltaf_la = fs_la/Nla
+
+plt.figure()
+plt.xlabel('n')
+plt.ylabel('Audio')
+plt.title('Nota LA Guitarra')
+plt.plot(aud)
+
+#%% Nota LA con Periodograma ventaneado
+la_pm = la * sig.windows.flattop(Nla)/ np.mean(sig.windows.flattop(Nla))
+LA_pm = np.fft.fft(la_pm, axis = 0)/Nla
+f_la_pm = np.arange(start = 0, stop = fs_la, step = deltaf_la)
+Pla_pm = np.abs(LA_pm)**2
+
+#Calculo de ancho de Banda
+Bla_pm, fo_la_pm, fcs_la_pm, fci_la_pm = bandWidth(Pla_pm[:Nla//2], deltaf = deltaf_la, tipo = 'passband',  cota = cota)
+
+#%% Nota LA con Welch
+kla = 8
+fla_w, Pla_w = sig.welch(la, fs_la, nperseg=Nla/kla, return_onesided = True)
+deltaf_la_w = fla_w[1] - fla_w[0] 
+Bla_w, fo_la_w, fcs_la_w, fci_la_w = bandWidth(Pla_w, deltaf = deltaf_la_w, tipo = 'passband',  cota = cota)
+
+#%% Nota LA con Blackman-Tuckey
+mla = Nla//3
+fla_bt, Pla_bt = blackman_tukey(la,  fs = fs_la, M = mla)
+deltaf_la_bt = fla_bt[1] - fla_bt[0] 
+Bla_bt, fo_la_bt, fcs_la_bt, fci_la_bt = bandWidth(Pla_bt[:mla], deltaf = deltaf_la_bt, tipo = 'passband',  cota = cota)
+
+#%% Graficos Nota LA
+plt.figure(figsize=(10,5))
+
+# Periodograma ventaneado
+plt.plot(f_la_pm,10*np.log10(2*Pla_pm),label='Periodograma (Flattop)',color=color_pm)
+plt.axvline(fcs_la_pm, color=color_pm, linestyle='--', label='fcs_PM')
+plt.axvline(fci_la_pm, color=color_pm, linestyle='--', label='fci_PM')
+# Welch
+plt.plot(fla_w,10*np.log10(Pla_w),label=f'Welch (K={kla})',color=color_w)
+plt.axvline(fcs_la_w, color=color_w, linestyle='--', label='fcs_W')
+plt.axvline(fci_la_w, color=color_w, linestyle='--', label='fci_W')
+
+# Blackman-Tukey
+plt.plot(fla_bt,10*np.log10(2*Pla_bt),label=f'Blackman-Tukey (M={mla})',color=color_bt)
+plt.axvline(fcs_la_bt, color=color_bt, linestyle='--', label='fcs_Bt')
+plt.axvline(fci_la_bt, color=color_bt, linestyle='--', label='fci_Bt')
+
+
+plt.xlim([0, 5000])
+plt.xlabel('Frecuencia [Hz]')
+plt.ylabel('PSD [dB]')
+plt.title('Comparación de estimadores espectrales de nota LA')
+plt.grid(True)
+plt.legend()
+plt.show() 
+
+print("\n{:^10} | {:^18} | {:^15}".format(
+      "Señal", "Método", "Bandwidth [Hz]"))
+print("-"*50)
+
+datos = [
+    ("LA",   "Periodograma",   Bla_pm),
+    ("LA",   "Welch",          Bla_w),
+    ("LA",   "Blackman-Tukey", Bla_bt),
+]
+
+for señal, metodo, bw in datos:
+    print(f"{señal:^10} | {metodo:^18} | {bw:>15.2f}")
