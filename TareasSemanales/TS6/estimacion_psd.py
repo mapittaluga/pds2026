@@ -26,7 +26,7 @@ def blackman_tukey(x, fs, M = None):
     rxx = rxx[mid-(M-1):mid+M]
 
     #Blackman
-    w = sig.windows.blackman(r_len)/ np.mean(sig.windows.blackman(r_len))
+    w = sig.windows.blackman(r_len)/ np.sqrt(np.mean(sig.windows.blackman(r_len))**2)
     rxx_w = rxx * w
 
     # PSD
@@ -75,7 +75,7 @@ plt.title('ECG sin ruido')
 plt.plot(ecg_one_lead)
 
 #%% ECG con Periodograma ventaneado
-ecg_pm = ecg_one_lead * sig.windows.flattop(Necg)/ np.mean(sig.windows.flattop(Necg))
+ecg_pm = ecg_one_lead * sig.windows.flattop(Necg)/ np.sqrt(np.mean(sig.windows.flattop(Necg)**2))
 ECG_pm = np.fft.fft(ecg_pm, axis = 0)/Necg
 f_ecg_pm = np.arange(start = 0, stop = fs_ecg, step = deltaf_ecg)
 Pecg_pm = np.abs(ECG_pm)**2
