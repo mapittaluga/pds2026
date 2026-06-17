@@ -25,7 +25,7 @@ t_hb2 = np.arange(len(hb_2)) / fs
 #  PARÁMETROS DEL FILTRO
 # ─────────────────────────────────────────────
 fc        = [1, 35]    # frecuencias de paso (Hz)
-fst       = [0.01, 45] # frecuencias de stop (Hz)
+fst       = [0.1, 45] # frecuencias de stop (Hz)
 ripple_db = 0.5
 att_db    = 20
 
