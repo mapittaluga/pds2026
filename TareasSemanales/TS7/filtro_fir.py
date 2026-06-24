@@ -27,7 +27,12 @@ fc = [1, 35]    # frecuencias de paso (Hz)
 fst = [0.1, 45]  # frecuencias de stop (Hz)
 ripple_db = 1
 att_db = 40
+ripple_db_but = ripple_db/2
+att_db_but = att_db/2
+# Para el Win es la mitad porque lo paso dos veces
 
+# 0,1 0,5 35 36 45
+# 40 0,9 
 # ─────────────────────────────────────────────
 #  PARÁMETROS Y DISEÑO DEL FILTRO
 # ─────────────────────────────────────────────
@@ -40,17 +45,30 @@ att_db = 40
 freq = [0, 0.1, 1, 35, 45, 500]
 freq_win = freq
 freq_ls = [0, 0.1, 1, 35, 36, 500]
+freq_rz = [0, 0.1, 1, 35, 36, 500]
 gain = [0, 0, 1, 1, 0, 0]
 gain_win = gain
 gain_ls = [0, 0, 1, 1, 0, 0]
-Ntaps_win = 1801
+gain_rz = [0, 1, 0]
+weigth_rz = [1, 1, 10]
+Ntaps_win = 901
 Ntaps_ls = 1801
+Ntaps_rz = 1501
 win = 'boxcar'
 
 b_win = signal.firwin2(numtaps=Ntaps_win, freq=freq_win,
                        gain=gain_win, window=win, antisymmetric=True, fs=fs)
 b_ls = signal.firls(numtaps=Ntaps_ls, bands=freq_ls,
                     desired=gain_ls, weight=None, fs=fs)
+
+b_rz = signal.remez(numtaps=Ntaps_rz, bands=freq_rz, desired=gain_rz, weight=weigth_rz, 
+      type='bandpass', maxiter=25, fs=fs)
+
+sos_butter = signal.iirdesign(
+    wp=fc, ws=fst, gpass=ripple_db_but, gstop=att_db_but,
+    analog=False, ftype='butter', output='sos', fs=fs
+)
+
 # ─────────────────────────────────────────────
 #  RESPUESTA EN FRECUENCIA
 # ─────────────────────────────────────────────
@@ -68,6 +86,10 @@ _, H_ls = signal.freqz(b_ls, worN=ww, fs=fs)
 mag_ls_dB = 20 * np.log10(np.abs(H_ls) + 1e-300)
 phase_ls = np.unwrap(np.angle(H_ls)) * 180 / np.pi
 
+_, H_rz = signal.freqz(b_rz, worN=ww, fs=fs)
+mag_rz_dB = 20 * np.log10(np.abs(H_rz) + 1e-300)
+phase_rz = np.unwrap(np.angle(H_rz)) * 180 / np.pi
+
 # ─────────────────────────────────────────────
 #  POLOS Y CEROS
 # ─────────────────────────────────────────────
@@ -77,6 +99,9 @@ p_win = np.zeros(len(b_win) - 1)  # todos los polos en z = 0
 z_ls = np.roots(b_ls)          # ceros
 p_ls = np.zeros(len(b_ls) - 1)  # todos los polos en z = 0
 
+z_rz = np.roots(b_rz)          # ceros
+p_rz = np.zeros(len(b_rz) - 1)  # todos los polos en z = 0
+
 # ─────────────────────────────────────────────
 #  FIGURA 1 — MÓDULO
 # ─────────────────────────────────────────────
@@ -84,6 +109,7 @@ fig1, ax1 = plt.subplots(figsize=(11, 4))
 
 ax1.plot(ww, mag_win_dB, 'b', linewidth=1.5, label='Metodo de Ventana')
 ax1.plot(ww, mag_ls_dB, 'r', linewidth=1.5, label='Cuadrados Minimos')
+ax1.plot(ww, mag_rz_dB, 'g', linewidth=1.5, label='Parks-Mc Clellan-Remez')
 
 axes_hdl = plt.gca()
 
@@ -107,6 +133,7 @@ fig2, ax2 = plt.subplots(figsize=(11, 4))
 
 ax2.plot(ww, phase_win, 'b', linewidth=1.5, label='Metodo de Ventana')
 ax2.plot(ww, phase_ls,  'r', linewidth=1.5, label='Cuadrados Minimos')
+ax2.plot(ww, phase_rz, 'g', linewidth=1.5, label='Parks-Mc Clellan-Remez')
 
 ax2.set_xlim([0, fs / 2])
 ax2.set_xlabel('Frecuencia (Hz)')
@@ -123,9 +150,10 @@ theta = np.linspace(0, 2 * np.pi, 512)
 filtros = [
     ('Metodo de Ventana',      z_win,  p_win,  'b'),
     ('Cuadrados Minimos',      z_ls, p_ls, 'r'),
+    ('Parks-Mc Clellan-Remez',      z_rz, p_rz, 'g')
 ]
 
-fig3, axes = plt.subplots(1, 2, figsize=(14, 5))
+fig3, axes = plt.subplots(1, 3, figsize=(14, 5))
 
 for ax, (nombre, z, p, color) in zip(axes, filtros):
     ax.plot(np.cos(theta), np.sin(theta), 'k--', linewidth=0.8, alpha=0.4)
@@ -151,3 +179,66 @@ for ax, (nombre, z, p, color) in zip(axes, filtros):
     ax.grid(True, linestyle=':', alpha=0.5)
 
 plt.tight_layout()
+
+# ─────────────────────────────────────────────
+#  FILTRADO DEL ECG IIR
+# ─────────────────────────────────────────────
+ecg_butter = signal.sosfiltfilt(sos_butter, ecg_one_lead)
+ecg_win  = signal.lfilter(b_win, 1,   ecg_one_lead)
+ecg_win  = signal.lfilter(b_win, 1,   ecg_win)
+ecg_win = np.concatenate((ecg_win[Ntaps_win:], np.zeros(Ntaps_win)))
+ecg_win = -ecg_win
+ecg_ls  = signal.lfilter(b_ls, 1,   ecg_one_lead)
+ecg_ls  =  np.concatenate((ecg_ls[Ntaps_ls//2:], np.zeros(Ntaps_ls//2)))
+
+ecg_rz = signal.lfilter(b_rz, 1,   ecg_one_lead)
+ecg_rz  =  np.concatenate((ecg_rz[Ntaps_rz//2:], np.zeros(Ntaps_rz//2)))
+
+# ─────────────────────────────────────────────
+#  REGIONES DE INTERÉS — sin ruido (señal cruda)
+# ─────────────────────────────────────────────
+regs_ruido = (
+    [4000, 5500],
+    [10000, 11000],
+)
+    
+for ii in regs_ruido:
+    zoom = np.arange(np.max([0, ii[0]]), np.min([N, ii[1]]), dtype='uint')
+    plt.figure(figsize=(11, 3))
+    plt.plot(zoom, ecg_one_lead[zoom], 'k',   linewidth=1,   label='ECG crudo',        alpha=0.5)
+    plt.plot(zoom, ecg_butter[zoom],   'b',   linewidth=1.5, label='Butterworth')
+    plt.plot(zoom, ecg_win[zoom],    'r', linewidth=1.5, label='Window')
+    plt.plot(zoom, ecg_ls[zoom],    'g',   linewidth=1.5, label='Least Squares')
+    plt.plot(zoom, ecg_rz[zoom],    'y',   linewidth=1.5, label='Parks-Mc Clellan-Remez')
+    plt.title(f'ECG filtrado — muestras {int(ii[0])} a {int(ii[1])}')
+    plt.ylabel('Adimensional')
+    plt.xlabel('Muestras (#)')
+    plt.gca().legend(fontsize=8)
+    plt.gca().set_yticks(())
+    plt.tight_layout()
+
+# ─────────────────────────────────────────────
+#  REGIONES DE INTERÉS — señal filtrada
+# ─────────────────────────────────────────────
+regs_filtradas = (
+    np.array([5,  5.2 ]) * 60 * fs,
+    np.array([12, 12.4]) * 60 * fs,
+    np.array([15, 15.2]) * 60 * fs,
+)
+
+for ii in regs_filtradas:
+    zoom = np.arange(np.max([0, ii[0]]), np.min([N, ii[1]]), dtype='uint')
+    plt.figure(figsize=(11, 3))
+    plt.plot(zoom, ecg_one_lead[zoom], 'k',   linewidth=1,   label='ECG crudo',        alpha=0.5)
+    plt.plot(zoom, ecg_butter[zoom],   'b',   linewidth=1.5, label='Butterworth')
+    plt.plot(zoom, ecg_win[zoom],    'r', linewidth=1.5, label='Window')
+    plt.plot(zoom, ecg_ls[zoom],    'g',   linewidth=1.5, label='Least Squares')
+    plt.plot(zoom, ecg_rz[zoom],    'y',   linewidth=1.5, label='Parks-Mc Clellan-Remez')
+    plt.title(f'ECG filtrado — muestras {int(ii[0])} a {int(ii[1])}')
+    plt.ylabel('Adimensional')
+    plt.xlabel('Muestras (#)')
+    plt.gca().legend(fontsize=8)
+    plt.gca().set_yticks(())
+    plt.tight_layout()
+
+plt.show()
