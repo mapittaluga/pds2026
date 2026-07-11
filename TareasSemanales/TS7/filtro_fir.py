@@ -51,7 +51,7 @@ gain_win = gain
 gain_ls = [0, 0, 1, 1, 0, 0]
 gain_rz = [0, 1, 0]
 weigth_rz = [1, 1, 10]
-Ntaps_win = 901
+Ntaps_win = 1101
 Ntaps_ls = 1801
 Ntaps_rz = 1501
 win = 'boxcar'
@@ -184,10 +184,12 @@ plt.tight_layout()
 #  FILTRADO DEL ECG IIR
 # ─────────────────────────────────────────────
 ecg_butter = signal.sosfiltfilt(sos_butter, ecg_one_lead)
+
 ecg_win  = signal.lfilter(b_win, 1,   ecg_one_lead)
 ecg_win  = signal.lfilter(b_win, 1,   ecg_win)
 ecg_win = np.concatenate((ecg_win[Ntaps_win:], np.zeros(Ntaps_win)))
 ecg_win = -ecg_win
+
 ecg_ls  = signal.lfilter(b_ls, 1,   ecg_one_lead)
 ecg_ls  =  np.concatenate((ecg_ls[Ntaps_ls//2:], np.zeros(Ntaps_ls//2)))
 

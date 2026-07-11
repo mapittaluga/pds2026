@@ -26,7 +26,7 @@ t_hb2 = np.arange(len(hb_2)) / fs
 # ─────────────────────────────────────────────
 fc        = [1, 35]    # frecuencias de paso (Hz)
 fst       = [0.1, 45] # frecuencias de stop (Hz)
-ripple_db = 0.5
+ripple_db = 0.25
 att_db    = 20
 
 # ─────────────────────────────────────────────
@@ -176,6 +176,9 @@ for ii in regs_ruido:
     zoom = np.arange(np.max([0, ii[0]]), np.min([N, ii[1]]), dtype='uint')
     plt.figure(figsize=(11, 3))
     plt.plot(zoom, ecg_one_lead[zoom], 'k', label='ECG crudo', linewidth=1.5)
+    plt.plot(zoom, ecg_butter[zoom],   'b',   linewidth=1.5, label='Butterworth')
+    plt.plot(zoom, ecg_cheby[zoom],    'r--', linewidth=1.5, label='Chebyshev I')
+    plt.plot(zoom, ecg_cauer[zoom],    'g',   linewidth=1.5, label='Cauer (Elíptico)')
     plt.title(f'ECG crudo — muestras {ii[0]} a {ii[1]}')
     plt.ylabel('Adimensional')
     plt.xlabel('Muestras (#)')
